@@ -170,6 +170,8 @@ module apf_io
 	
 	output reg [3:0] 	cart_pchip,
 	output reg       	use_pcm,
+	output reg       	ms5p_bank,
+	output reg       	xram,
 	output reg [1:0] 	cart_chip,
 	output reg [1:0] 	cmc_chip,
 
@@ -590,7 +592,7 @@ reg [9:0] test_crom_bits; //= { // this is a trick Im doing to check if anything
 			endcase
 		end
 									
-reg 			cart_pchip_main;
+reg 		cart_pchip_main;
 reg [2:0] 	cart_pchip_sub;
 reg			PROM1_access;	
 reg			Core_reset;
@@ -609,15 +611,17 @@ always @(posedge clk_74a or negedge reset_l_main) begin
 		controller_map_2	 	<= 32'h00000000;
 		DIPSW 				 	<= 32'h000000FF;
 		SYSTEM_TYPE 		 	<= 32'h00000001;
-		memory_card_enable 	<= 32'h00000010;
+		memory_card_enable 	    <= 32'h00000010;
 		use_mouse_reg 		 	<= 32'h00000000;
 		video_mode 			 	<= 32'h00000000;
 		ch_enable			 	<= 32'h000000ff;
 		snd_enable			 	<= 32'h000000ff;
-		cart_pchip_main	 	<= 32'h00000000;
+		cart_pchip_main	 	    <= 32'h00000000;
+		ms5p_bank				<= 32'h00000000;
+		xram				    <= 32'h00000000;
 		use_pcm				 	<= 32'h00000000;
 		cart_pchip_sub		 	<= 32'h00000000;
-		cmc_chip				 	<= 32'h00000000;
+		cmc_chip				<= 32'h00000000;
 		screen_x_pos		 	<= 32'h00000000;
 		screen_y_pos		 	<= 32'h00000000;
 		V2_offset			 	<= 32'h00000000;
@@ -663,12 +667,12 @@ always @(posedge clk_74a or negedge reset_l_main) begin
 				// here is the config sid of things of the core. Moved the RTC so that this can be configured by the APF directly
 				// These are the old JSON regs locations.
 				32'hF0000008 : DIPSW 					<= bridge_wr_data;
-				32'hF000000c : SYSTEM_TYPE 			<= bridge_wr_data;
-				32'hF0000010 : memory_card_enable 	<= bridge_wr_data;
+				32'hF000000c : SYSTEM_TYPE 			    <= bridge_wr_data;
+				32'hF0000010 : memory_card_enable 	    <= bridge_wr_data;
 				32'hF0000014 : use_mouse_reg 			<= bridge_wr_data;
 				32'hF000001c : ch_enable				<= bridge_wr_data;
 				32'hF0000020 : snd_enable				<= bridge_wr_data;
-				32'hF0000024 : cart_pchip_main		<= bridge_wr_data;
+				32'hF0000024 : cart_pchip_main		    <= bridge_wr_data;
 				32'hF0000028 : use_pcm					<= bridge_wr_data;
 				32'hF000002C : cart_pchip_sub			<= bridge_wr_data;
 				32'hF0000030 : cmc_chip					<= bridge_wr_data;
@@ -677,6 +681,8 @@ always @(posedge clk_74a or negedge reset_l_main) begin
 				32'hF000004C : V2ROM_MASK				<= bridge_wr_data;
 				32'hF0000050 : V1ROM_MASK				<= bridge_wr_data;
 				32'hF0000054 : C1_wait					<= bridge_wr_data;
+				32'hF0000058 : ms5p_bank				<= bridge_wr_data;
+				32'hF000006C : xram				        <= bridge_wr_data;
 				
 				// Core changes
 				32'hF0000100 : Core_reset				<= bridge_wr_data;
@@ -795,7 +801,8 @@ always @(posedge clk_74a) begin
 				16'h004C : Neogeo_status <= V2ROM_MASK;
 				16'h0050 : Neogeo_status <= V1ROM_MASK;
 				16'h0054 : Neogeo_status <= C1_wait;
-
+                16'h0058 : Neogeo_status <= ms5p_bank;
+				16'h006C : Neogeo_status <= xram;
 				
 				// Core changes
 				16'h0100 : Neogeo_status <= Core_reset;

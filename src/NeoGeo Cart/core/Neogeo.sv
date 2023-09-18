@@ -328,8 +328,10 @@ wire  [1:0] buttons;
 wire [10:0] ps2_key;
 wire [24:0] ps2_mouse;
 wire        forced_scandoubler;
-wire 			video_mode;
+wire 		video_mode;
 
+wire        xram;
+wire        ms5p_bank;
 wire [3:0] 	cart_pchip;
 wire       	use_pcm;
 wire [1:0] 	cart_chip;
@@ -342,19 +344,19 @@ wire [1:0]	memory_card_enable;
 wire [7:0]	DIPSW;
 
 wire [63:0] rtc;
-wire 			rtc_valid;
+wire 		rtc_valid;
 
 wire [3:0]	snd_enable;
 wire [5:0]	ch_enable;
 
-wire 			LO_RAM_word_wr;
+wire 		LO_RAM_word_wr;
 wire [16:0]	LO_RAM_word_addr;
 wire [7:0]	LO_RAM_word_data;
 wire [7:0]	LO_RAM_word_q;
 
 wire [15:0]		backup_ram_addr;
 wire [31:0]		backup_ram_dout;
-wire 				backup_ram_wr;
+wire 			backup_ram_wr;
 wire [31:0]		backup_ram_din;
 
 wire SYSTEM_MVS = SYSTEM_TYPE;
@@ -367,7 +369,7 @@ wire [18:0] MROM_MASK;
 wire [23:0]	V2_offset;
 wire [18:0] SROM_MASK;
 
-wire 			start_system;
+wire 		start_system;
 
 wire [31:0]	screen_x_pos;
 wire [31:0]	screen_y_pos;
@@ -407,7 +409,7 @@ apf_io apf_io
 	.rtc_valid					(rtc_valid),
 	.DIPSW						(DIPSW),
 	.SYSTEM_TYPE				(SYSTEM_TYPE),
-	.memory_card_enable		(memory_card_enable),
+	.memory_card_enable		    (memory_card_enable),
 	.use_mouse_reg				(use_mouse_reg),
 	.video_mode					(video_mode),
 	.APF_Video_ratio			(APF_Video_ratio),
@@ -415,7 +417,9 @@ apf_io apf_io
 	.ch_enable					(ch_enable),
 	
 	.cart_pchip					(cart_pchip),
-	.use_pcm						(use_pcm),
+	.ms5p_bank					(ms5p_bank),
+	.xram					    (xram),
+	.use_pcm					(use_pcm),
 	.cart_chip					(cart_chip),
 	.cmc_chip					(cmc_chip),
 
@@ -427,7 +431,7 @@ apf_io apf_io
 	.MROM_MASK					(MROM_MASK),
 	.V2_offset					(V2_offset),
 	.V2ROM_MASK					(V2ROM_MASK),
-	.C1_wait						(C1_wait),
+	.C1_wait					(C1_wait),
 	
 	.sdram_word_rd				(sdram_word_rd),
 	.sdram_word_wr				(sdram_word_wr),
@@ -917,7 +921,7 @@ assign M68K_DATA = M68K_RW ? 16'bzzzzzzzz_zzzzzzzz : FX68K_DATAOUT;
 assign FX68K_DATAIN = M68K_RW ? M68K_DATA_BYTE_MASK : 16'h0000;
 
 // Disable ROM read in PORT zone if the game uses a special chip
-assign M68K_DATA = (nROMOE & nSROMOE & |{nPORTOE, cart_chip, cart_pchip}) ? 16'bzzzzzzzzzzzzzzzz : PROM_DATA;
+assign M68K_DATA = (nROMOE & nSROMOE & |{nPORTOE, cart_chip, xram, cart_pchip}) ? 16'bzzzzzzzzzzzzzzzz : PROM_DATA;
 
 wire [23:0] P2ROM_ADDR = (!cart_pchip) ? {P_BANK, M68K_ADDR[19:1], 1'b0} : 24'bZ;
 
@@ -951,6 +955,43 @@ neo_sma neo_sma
 	.P2_ADDR(P2ROM_ADDR)
 );
 
+wire XRAM_CS = ~nPORTADRS && !M68K_ADDR[19:13] && xram;
+wire [15:0] XRAM_OUT;
+wire [15:0] xram_buff_dout;
+
+dpram #(12) XRAML(
+	.clock_a(CLK_24M),
+	.address_a(M68K_ADDR[12:1]),
+	.data_a(M68K_DATA[7:0]),
+	.wren_a(~nPORTWEL & XRAM_CS),
+	.q_a(XRAM_OUT[7:0]),
+
+	.clock_b(clk_sys),
+	.address_b(neogeo_memcard_addr),
+	.wren_b(neogeo_memcard_wr & xram),
+	.data_b(neogeo_memcard_dout[7:0]),
+	.q_b(xram_buff_dout[7:0])
+);
+
+dpram #(12) XRAMU(
+	.clock_a(CLK_24M),
+	.address_a(M68K_ADDR[12:1]),
+	.data_a(M68K_DATA[15:8]),
+	.wren_a(~nPORTWEU & XRAM_CS),
+	.q_a(XRAM_OUT[15:8]),
+
+	.clock_b(clk_sys),
+	.address_b(neogeo_memcard_addr),
+	.wren_b(neogeo_memcard_wr & xram),
+	.data_b(neogeo_memcard_dout[15:8]),
+	.q_b(xram_buff_dout[15:8])
+);
+
+assign M68K_DATA[7:0]  = (XRAM_CS & ~nPORTOEL) ? XRAM_OUT[7:0]  : 8'bZ;
+assign M68K_DATA[15:8] = (XRAM_CS & ~nPORTOEU) ? XRAM_OUT[15:8] : 8'bZ;
+
+assign M68K_DATA[7:0] = (~nPORTOEL && M68K_ADDR[19] && !M68K_ADDR[18:1] && xram) ? {~joystick_0[8],1'b1,~joystick_0[9],~joystick_0[11],2'b11, ~joystick_1[10],~joystick_0[10]} : 8'bZ;
+
 // Memory card
 assign {nCD1, nCD2} = memory_card_enable;	// Always plugged in CD systems
 assign CARD_WE = ((~nCARDWEN & CARDWENB)) & ~nCRDW;
@@ -973,6 +1014,8 @@ memcard MEMCARD(
 
 // Feed save file writer with backup RAM data or memory card data
 
+
+
 assign CROM_ADDR = {C_LATCH_EXT, C_LATCH};
 
 zmc ZMC(
@@ -987,10 +1030,13 @@ zmc ZMC(
 // P_BANK stays at 0 for CD systems
 always @(posedge nPORTWEL or negedge nRESET)
 begin
-	if (!nRESET)
-		P_BANK <= 0;
-	else
-		P_BANK <= M68K_DATA[3:0];
+
+    if (!nRESET)
+             	P_BANK <= 0;
+	else if 
+		        (!nRESET || ~ms5p_bank) P_BANK <= M68K_DATA[3:0];
+		else if(&M68K_ADDR[19:4] && M68K_ADDR[3:1] == 2) P_BANK <= M68K_DATA[7:4] - 1'd1;
+	
 end
 
 // PRO-CT0 used as security chip
@@ -1162,8 +1208,8 @@ neo_c1 C1(
 	.nCRDW		(nCRDW), 
 	.nCRDC		(nCRDC),
 	.nSDW			(nSDW),
-	.P1_IN(~{(joystick_0[9:8]|ps2_mouse[2]), {use_mouse ? ms_pos : use_sp ? {|{joystick_0[7:4],ps2_mouse[1:0]},sp0} : {joystick_0[7:4]|{3{joystick_0[11]}}, joystick_0[0], joystick_0[1], joystick_0[2], joystick_0[3]}}}),
-	.P2_IN(~{ joystick_1[9:8],               {use_mouse ? ms_btn : use_sp ? {|{joystick_1[7:4]},               sp1} : {joystick_1[7:4]|{3{joystick_1[11]}}, joystick_1[0], joystick_1[1], joystick_1[2], joystick_1[3]}}}),
+	.P1_IN(~{(joystick_0[9:8]|ps2_mouse[2]), {use_mouse ? ms_pos : use_sp ? {|{joystick_0[7:4],ps2_mouse[1:0]},sp0} : {joystick_0[7:4]|{3{~xram & joystick_0[11]}}, joystick_0[0], joystick_0[1], joystick_0[2], joystick_0[3]}}}),
+	.P2_IN(~{ joystick_1[9:8],               {use_mouse ? ms_btn : use_sp ? {|{joystick_1[7:4]},               sp1} : {joystick_1[7:4]|{3{~xram & joystick_1[11]}}, joystick_1[0], joystick_1[1], joystick_1[2], joystick_1[3]}}}),
 	.nCD1			(nCD1), 
 	.nCD2			(nCD2),
 	.nWP			(0),			// Memory card is never write-protected
