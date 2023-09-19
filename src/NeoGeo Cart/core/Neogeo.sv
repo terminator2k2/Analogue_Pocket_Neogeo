@@ -990,7 +990,7 @@ dpram #(12) XRAMU(
 assign M68K_DATA[7:0]  = (XRAM_CS & ~nPORTOEL) ? XRAM_OUT[7:0]  : 8'bZ;
 assign M68K_DATA[15:8] = (XRAM_CS & ~nPORTOEU) ? XRAM_OUT[15:8] : 8'bZ;
 
-assign M68K_DATA[7:0] = (~nPORTOEL && M68K_ADDR[19] && !M68K_ADDR[18:1] && xram) ? {~joystick_0[8],1'b1,~joystick_0[9],~joystick_0[11],2'b11, ~joystick_1[10],~joystick_0[10]} : 8'bZ;
+assign M68K_DATA[7:0] = (~nPORTOEL && M68K_ADDR[19] && !M68K_ADDR[18:1] && xram) ? {~joystick_0[11],1'b1,~joystick_0[10],~joystick_0[8],2'b11, ~joystick_1[9],~joystick_0[9]} : 8'bZ;
 
 // Memory card
 assign {nCD1, nCD2} = memory_card_enable;	// Always plugged in CD systems
