@@ -1,5 +1,5 @@
-set_global_assignment -name QIP_FILE core/NeoGeoCore/jt12/hdl/jt10.qip
-set_global_assignment -name QIP_FILE core/NeoGeoCore/jt49/hdl/jt49.qip
+set_global_assignment -name QIP_FILE core/NeoGeoCore/jt12/target/quartus/jt10.qip
+set_global_assignment -name QIP_FILE core/NeoGeoCore/jt49/syn/quartus/jt49.qip
 set_global_assignment -name QIP_FILE core/NeoGeoCore/video/video.qip
 set_global_assignment -name QIP_FILE core/NeoGeoCore/io/io.qip
 set_global_assignment -name QIP_FILE core/NeoGeoCore/cells/cells.qip

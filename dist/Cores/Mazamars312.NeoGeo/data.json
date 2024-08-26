@@ -3,7 +3,7 @@
         "magic": "APF_VER_1",
 			"data_slots": [
 				{
-					"name": "Game JSON Setup",
+					"name": "Game",
 					"id": 0,
 					"required": true,
 					"parameters": "0x1D3",
@@ -80,7 +80,7 @@
 				{
 					"name": "SROM",
 					"id": 3,
-					"required": true,
+					"required": false,
 					"parameters": 0,
 					"extensions": [
 						"srom"
@@ -129,7 +129,7 @@
 				{
 					"name": "VROM",
 					"id": 7,
-					"required": true,
+					"required": false,
 					"parameters": 0,
 					"extensions": [
 						"vbin", "vroma0"
